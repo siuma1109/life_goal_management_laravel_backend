@@ -70,12 +70,16 @@ class TaskController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $task->load('children');
+
         return response()->json($task);
     }
 
     public function update(Request $request, Task $task)
     {
         $task->update($request->all());
+
+        $task->load('children');
         return response()->json($task);
     }
 
