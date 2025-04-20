@@ -14,3 +14,6 @@ Route::get('/user', function (Request $request) {
 
 Route::resource('projects', ProjectController::class)->middleware('auth:sanctum');
 Route::resource('tasks', TaskController::class)->middleware('auth:sanctum');
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('tasks_count', [TaskController::class, 'tasks_count']);
+});

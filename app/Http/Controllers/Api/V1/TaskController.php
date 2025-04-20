@@ -25,6 +25,23 @@ class TaskController extends Controller
         return response()->json($tasks);
     }
 
+    public function tasks_count(Request $request)
+    {
+        $task_count = Task::query()
+            ->with('sub_tasks')
+            ->when($request->has('project_id'), function ($query) use ($request) {
+                return $query->where('project_id', $request->project_id);
+            })
+            ->when($request->has('parent_id'), function ($query) use ($request) {
+                return $query->where('parent_id', $request->parent_id);
+            })
+            ->where('user_id', Auth::id())
+            ->count();
+
+        return response()->json([
+            "task_count" => $task_count,
+        ]);
+    }
     public function store(Request $request)
     {
         $request->validate([
