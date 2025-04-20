@@ -12,12 +12,12 @@ class TaskController extends Controller
     public function index(Request $request)
     {
         $tasks = Task::query()
-            ->with('children')
+            ->with('sub_tasks')
             ->when($request->has('project_id'), function ($query) use ($request) {
-                return $query->where('project_id', $request->project_id)
-                ->when($request->project_id == null, function ($query) {
-                    return $query->where('parent_id', null);
-                });
+                return $query->where('project_id', $request->project_id);
+            })
+            ->when($request->has('parent_id'), function ($query) use ($request) {
+                return $query->where('parent_id', $request->parent_id);
             })
             ->where('user_id', Auth::id())
             ->get();
@@ -35,7 +35,7 @@ class TaskController extends Controller
             'is_checked' => 'nullable|boolean',
             'parent_id' => 'nullable|exists:tasks,id,user_id,' . Auth::id(),
             'project_id' => 'nullable|exists:projects,id,user_id,' . Auth::id(),
-            'children' => 'nullable|array',
+            'sub_tasks' => 'nullable|array',
         ]);
 
         $task = Task::create([
@@ -49,23 +49,23 @@ class TaskController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        if ($request->has('children')) {
-            $this->_insert_recursive($task, $request->children);
+        if ($request->has('sub_tasks')) {
+            $this->_insert_recursive($task, $request->sub_tasks);
         }
 
-        $task = $task->load('children');
+        $task = $task->load('sub_tasks');
 
         return response()->json($task);
     }
 
-    private function _insert_recursive(Task $task, array $children)
+    private function _insert_recursive(Task $task, array $sub_tasks)
     {
-        foreach ($children as $child) {
-            $child['parent_id'] = $task->id;
-            $child['user_id'] = Auth::id();
-            $new_task = Task::create($child);
-            if (isset($child['children'])) {
-                $this->_insert_recursive($new_task, $child['children']);
+        foreach ($sub_tasks as $sub_task) {
+            $sub_task['parent_id'] = $task->id;
+            $sub_task['user_id'] = Auth::id();
+            $new_task = Task::create($sub_task);
+            if (isset($sub_task['sub_tasks'])) {
+                $this->_insert_recursive($new_task, $sub_task['sub_tasks']);
             }
         }
     }
@@ -76,7 +76,7 @@ class TaskController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $task->load('children');
+        $task->load('sub_tasks');
 
         return response()->json($task);
     }
@@ -85,7 +85,7 @@ class TaskController extends Controller
     {
         $task->update($request->all());
 
-        $task->load('children');
+        $task->load('sub_tasks');
         return response()->json($task);
     }
 
