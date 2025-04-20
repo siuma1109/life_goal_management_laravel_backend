@@ -27,7 +27,7 @@ class TaskController extends Controller
 
     public function tasks_count(Request $request)
     {
-        $task_count = Task::query()
+        $tasks_count = Task::query()
             ->with('sub_tasks')
             ->when($request->has('project_id'), function ($query) use ($request) {
                 return $query->where('project_id', $request->project_id);
@@ -39,7 +39,7 @@ class TaskController extends Controller
             ->count();
 
         return response()->json([
-            "task_count" => $task_count,
+            "tasks_count" => $tasks_count,
         ]);
     }
     public function store(Request $request)
