@@ -9,10 +9,19 @@ use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $project_id = $request->project_id;
+
         $tasks = Task::query()
             ->with('children')
+            ->when($project_id, function ($query) use ($project_id) {
+                return $query->where('project_id', $project_id);
+            })
+            ->when(!$project_id, function ($query) {
+                return $query->where('project_id', null)
+                    ->where('parent_id', null);
+            })
             ->where('user_id', Auth::id())
             ->get();
 
