@@ -11,16 +11,13 @@ class TaskController extends Controller
 {
     public function index(Request $request)
     {
-        $project_id = $request->project_id;
-
         $tasks = Task::query()
             ->with('children')
-            ->when($project_id, function ($query) use ($project_id) {
-                return $query->where('project_id', $project_id);
-            })
-            ->when(!$project_id, function ($query) {
-                return $query->where('project_id', null)
-                    ->where('parent_id', null);
+            ->when($request->has('project_id'), function ($query) use ($request) {
+                return $query->where('project_id', $request->project_id)
+                ->when($request->project_id == null, function ($query) {
+                    return $query->where('parent_id', null);
+                });
             })
             ->where('user_id', Auth::id())
             ->get();
