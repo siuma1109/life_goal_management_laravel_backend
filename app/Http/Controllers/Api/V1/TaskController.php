@@ -13,8 +13,13 @@ class TaskController extends Controller
     {
         $tasks = Task::query()
             ->with('sub_tasks')
+            ->when($request->type == 'inbox', function ($query) use ($request) {
+                return $query->whereNull('project_id')
+                    ->whereNull('parent_id');
+            })
             ->when($request->has('project_id'), function ($query) use ($request) {
-                return $query->where('project_id', $request->project_id);
+                return $query->where('project_id', $request->project_id)
+                    ->whereNull('parent_id');
             })
             ->when($request->has('parent_id'), function ($query) use ($request) {
                 return $query->where('parent_id', $request->parent_id);
@@ -29,8 +34,16 @@ class TaskController extends Controller
     {
         $tasks_count = Task::query()
             ->with('sub_tasks')
+            ->when($request->type == 'all_without_sub_tasks', function ($query) use ($request) {
+                return $query->where('parent_id', null);
+            })
+            ->when($request->type == 'inbox', function ($query) use ($request) {
+                return $query->where('parent_id', null)
+                    ->where('project_id', null);
+            })
             ->when($request->has('project_id'), function ($query) use ($request) {
-                return $query->where('project_id', $request->project_id);
+                return $query->where('project_id', $request->project_id)
+                    ->where('parent_id', null);
             })
             ->when($request->has('parent_id'), function ($query) use ($request) {
                 return $query->where('parent_id', $request->parent_id);
@@ -59,7 +72,7 @@ class TaskController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
-            'priority' => $request->priority,
+            'priority' => $request->priority ? $request->priority : 4,
             'is_checked' => $request->is_checked ?? false,
             'parent_id' => $request->parent_id,
             'project_id' => $request->project_id,
@@ -67,7 +80,7 @@ class TaskController extends Controller
         ]);
 
         if ($request->has('sub_tasks')) {
-            $this->_insert_recursive($task, $request->sub_tasks);
+            $this->_insert_recursive($task, $request->sub_tasks, $request->project_id);
         }
 
         $task = $task->load('sub_tasks');
@@ -75,14 +88,16 @@ class TaskController extends Controller
         return response()->json($task);
     }
 
-    private function _insert_recursive(Task $task, array $sub_tasks)
+    private function _insert_recursive(Task $task, array $sub_tasks, $project_id)
     {
         foreach ($sub_tasks as $sub_task) {
             $sub_task['parent_id'] = $task->id;
             $sub_task['user_id'] = Auth::id();
+            $sub_task['priority'] = isset($sub_task['priority']) && $sub_task['priority'] != null ? $sub_task['priority'] : 4;
+            $sub_task['project_id'] = $project_id;
             $new_task = Task::create($sub_task);
             if (isset($sub_task['sub_tasks'])) {
-                $this->_insert_recursive($new_task, $sub_task['sub_tasks']);
+                $this->_insert_recursive($new_task, $sub_task['sub_tasks'], $project_id);
             }
         }
     }
@@ -100,7 +115,9 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task)
     {
-        $task->update($request->all());
+        $task
+            ->fill($request->all())
+            ->save();
 
         $task->load('sub_tasks');
         return response()->json($task);
