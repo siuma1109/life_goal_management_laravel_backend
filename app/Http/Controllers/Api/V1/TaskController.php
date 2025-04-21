@@ -25,6 +25,9 @@ class TaskController extends Controller
                 return $query->where('parent_id', $request->parent_id);
             })
             ->where('user_id', Auth::id())
+            ->when($request->due_date, function ($query) use ($request) {
+                return $query->where('due_date', $request->due_date);
+            })
             ->get();
 
         return response()->json($tasks);
