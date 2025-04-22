@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+Route::post('users', [UserController::class, 'store']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
@@ -14,15 +15,23 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::resource('projects', ProjectController::class)->middleware('auth:sanctum');
-Route::resource('tasks', TaskController::class)->middleware('auth:sanctum');
 Route::middleware('auth:sanctum')->group(function () {
+    /**
+     * Projects
+     */
+    Route::resource('projects', ProjectController::class);
+
+    /**
+     * Tasks
+     */
+    Route::resource('tasks', TaskController::class);
     Route::get('tasks_count', [TaskController::class, 'tasks_count']);
+
+    /**
+     * Users
+     */
+    Route::resource('users', UserController::class)->only([
+        'update',
+        'destroy',
+    ]);
 });
-
-Route::post('users', [UserController::class, 'store']);
-
-Route::resource('users', UserController::class)->only([
-    'update',
-    'destroy',
-])->middleware('auth:sanctum');

@@ -36,16 +36,38 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|unique:users,email,' . $user->id,
-            'current_password' => 'required|string|min:8',
+            'current_password' => 'nullable|string|min:8',
             'password' => 'nullable|string|min:8',
         ]);
 
-        if ($validated['current_password'] && !Hash::check($validated['current_password'], $user->password)) {
-            return response()->json(['message' => 'Current password is incorrect'], 422);
+        if ($validated['email'] == $user->email) {
+            unset($validated['email']);
         }
 
-        if ($validated['password']) {
-            $validated['password'] = Hash::make($validated['password']);
+        if (empty($validated['current_password'])) {
+            unset($validated['current_password']);
+        }
+
+        if (empty($validated['password'])) {
+            unset($validated['password']);
+        }
+
+        if (isset($validated['password']) && !isset($validated['current_password'])) {
+            return response()->json([
+                'message' => 'Current password is required',
+                'errors' => [
+                    'current_password' => ['The current password field is required.'],
+                ],
+            ], 422);
+        }
+
+        if (isset($validated['current_password']) && !Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'Current password is incorrect',
+                'errors' => [
+                    'current_password' => ['The current password field is incorrect.'],
+                ],
+            ], 422);
         }
 
         $user->fill($validated)->save();
