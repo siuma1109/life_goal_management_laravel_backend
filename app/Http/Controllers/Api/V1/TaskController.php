@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Comment;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -134,5 +135,47 @@ class TaskController extends Controller
 
         $task->delete();
         return response()->json(null, 204);
+    }
+
+    public function storeComment(Request $request, Task $task)
+    {
+        $request->validate([
+            'body' => 'required|string',
+        ]);
+
+        $comment = $task->comments()->create([
+            'body' => $request->body,
+            'user_id' => Auth::id(),
+        ]);
+
+        $comment->load('user');
+
+        return response()->json($comment);
+    }
+
+    public function destroyComment(Task $task, Comment $comment)
+    {
+        if ($comment->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $comment->delete();
+        return response()->json(null, 204);
+    }
+
+    public function updateComment(Request $request, Task $task, Comment $comment)
+    {
+        if ($comment->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $comment->update($request->all());
+        return response()->json($comment);
+    }
+
+    public function getComments(Task $task)
+    {
+        $comments = $task->comments()->with('user')->latest()->get();
+        return response()->json($comments);
     }
 }

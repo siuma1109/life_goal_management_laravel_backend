@@ -25,6 +25,10 @@ Route::middleware('auth:sanctum')->group(function () {
      * Tasks
      */
     Route::resource('tasks', TaskController::class);
+    Route::post('tasks/{task}/comments', [TaskController::class, 'storeComment']);
+    Route::delete('tasks/{task}/comments/{comment}', [TaskController::class, 'destroyComment']);
+    Route::put('tasks/{task}/comments/{comment}', [TaskController::class, 'updateComment']);
+    Route::get('tasks/{task}/comments', [TaskController::class, 'getComments']);
     Route::get('tasks_count', [TaskController::class, 'tasks_count']);
 
     /**
