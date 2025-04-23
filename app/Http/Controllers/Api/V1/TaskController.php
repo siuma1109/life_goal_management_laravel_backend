@@ -29,6 +29,7 @@ class TaskController extends Controller
             ->when($request->due_date, function ($query) use ($request) {
                 return $query->where('due_date', $request->due_date);
             })
+            ->where('is_checked', false)
             ->get();
 
         return response()->json($tasks);
@@ -36,27 +37,31 @@ class TaskController extends Controller
 
     public function tasks_count(Request $request)
     {
-        $tasks_count = Task::query()
-            ->with('sub_tasks')
-            ->when($request->type == 'all_without_sub_tasks', function ($query) use ($request) {
-                return $query->where('parent_id', null);
-            })
-            ->when($request->type == 'inbox', function ($query) use ($request) {
-                return $query->where('parent_id', null)
-                    ->where('project_id', null);
-            })
-            ->when($request->has('project_id'), function ($query) use ($request) {
-                return $query->where('project_id', $request->project_id)
-                    ->where('parent_id', null);
-            })
-            ->when($request->has('parent_id'), function ($query) use ($request) {
-                return $query->where('parent_id', $request->parent_id);
-            })
-            ->where('user_id', Auth::id())
-            ->count();
+        $query = Task::query()
+        ->when($request->type == 'all_without_sub_tasks', function ($query) use ($request) {
+            return $query->where('parent_id', null);
+        })
+        ->when($request->type == 'inbox', function ($query) use ($request) {
+            return $query->where('parent_id', null)
+                ->where('project_id', null);
+        })
+        ->when($request->has('project_id'), function ($query) use ($request) {
+            return $query->where('project_id', $request->project_id)
+                ->where('parent_id', null);
+        })
+        ->when($request->has('parent_id'), function ($query) use ($request) {
+            return $query->where('parent_id', $request->parent_id);
+        })
+        ->where('user_id', Auth::id());
+
+        $tasks_count = $query->count();
+
+        $finished_tasks_count = $query->where('is_checked', true)->count();
 
         return response()->json([
             "tasks_count" => $tasks_count,
+            'finished_tasks_count' => $finished_tasks_count,
+            "pending_tasks_count" => $tasks_count - $finished_tasks_count,
         ]);
     }
     public function store(Request $request)
