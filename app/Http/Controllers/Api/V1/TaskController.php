@@ -26,8 +26,17 @@ class TaskController extends Controller
                 return $query->where('parent_id', $request->parent_id);
             })
             ->where('user_id', Auth::id())
-            ->when($request->due_date, function ($query) use ($request) {
-                return $query->where('due_date', $request->due_date);
+            ->when($request->year && $request->month, function ($query) use ($request) {
+                return $query->where(function ($query) use ($request) {
+                    $query->where(function ($query) use ($request) {
+                        $query->whereYear('start_date', $request->year)
+                            ->whereMonth('start_date', $request->month);
+                    })
+                        ->orWhere(function ($query) use ($request) {
+                            $query->whereYear('end_date', $request->year)
+                                ->whereMonth('end_date', $request->month);
+                        });
+                });
             })
             ->where('is_checked', false)
             ->get();
@@ -38,21 +47,21 @@ class TaskController extends Controller
     public function tasks_count(Request $request)
     {
         $query = Task::query()
-        ->when($request->type == 'all_without_sub_tasks', function ($query) use ($request) {
-            return $query->where('parent_id', null);
-        })
-        ->when($request->type == 'inbox', function ($query) use ($request) {
-            return $query->where('parent_id', null)
-                ->where('project_id', null);
-        })
-        ->when($request->has('project_id'), function ($query) use ($request) {
-            return $query->where('project_id', $request->project_id)
-                ->where('parent_id', null);
-        })
-        ->when($request->has('parent_id'), function ($query) use ($request) {
-            return $query->where('parent_id', $request->parent_id);
-        })
-        ->where('user_id', Auth::id());
+            ->when($request->type == 'all_without_sub_tasks', function ($query) use ($request) {
+                return $query->where('parent_id', null);
+            })
+            ->when($request->type == 'inbox', function ($query) use ($request) {
+                return $query->where('parent_id', null)
+                    ->where('project_id', null);
+            })
+            ->when($request->has('project_id'), function ($query) use ($request) {
+                return $query->where('project_id', $request->project_id)
+                    ->where('parent_id', null);
+            })
+            ->when($request->has('parent_id'), function ($query) use ($request) {
+                return $query->where('parent_id', $request->parent_id);
+            })
+            ->where('user_id', Auth::id());
 
         $tasks_count = $query->count();
 
@@ -69,7 +78,8 @@ class TaskController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'due_date' => 'nullable|date',
+            'start_date' => 'nullable|date_format:Y-m-d H:i:s|required_unless:end_date,null|before:end_date',
+            'end_date' => 'nullable|date_format:Y-m-d H:i:s|required_unless:start_date,null|after:start_date',
             'priority' => 'nullable|integer',
             'is_checked' => 'nullable|boolean',
             'parent_id' => 'nullable|exists:tasks,id,user_id,' . Auth::id(),
@@ -80,7 +90,8 @@ class TaskController extends Controller
         $task = Task::create([
             'title' => $request->title,
             'description' => $request->description,
-            'due_date' => $request->due_date,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
             'priority' => $request->priority ? $request->priority : 4,
             'is_checked' => $request->is_checked ?? false,
             'parent_id' => $request->parent_id,

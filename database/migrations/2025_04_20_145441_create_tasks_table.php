@@ -18,7 +18,8 @@ return new class extends Migration
             $table->foreignId('project_id')->nullable()->constrained('projects')->cascadeOnDelete();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->date('due_date')->nullable();
+            $table->dateTime('start_date')->nullable();
+            $table->dateTime('end_date')->nullable();
             $table->integer('priority')->default(4);
             $table->boolean('is_checked')->default(false);
             $table->timestamps();
