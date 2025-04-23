@@ -31,6 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('tasks/{task}/comments', [TaskController::class, 'getComments']);
     Route::get('tasks_count', [TaskController::class, 'tasks_count']);
 
+    Route::get('explore/tasks', [TaskController::class, 'exploreTasks']);
+
     /**
      * Users
      */

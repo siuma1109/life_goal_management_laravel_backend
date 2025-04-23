@@ -135,6 +135,22 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task)
     {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'start_date' => 'nullable|date_format:Y-m-d H:i:s|required_unless:end_date,null|before:end_date',
+            'end_date' => 'nullable|date_format:Y-m-d H:i:s|required_unless:start_date,null|after:start_date',
+            'priority' => 'nullable|integer',
+            'is_checked' => 'nullable|boolean',
+            'parent_id' => 'nullable|exists:tasks,id,user_id,' . Auth::id(),
+            'project_id' => 'nullable|exists:projects,id,user_id,' . Auth::id(),
+            'sub_tasks' => 'nullable|array',
+        ]);
+
+        if ($task->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $task
             ->fill($request->all())
             ->save();
@@ -193,5 +209,15 @@ class TaskController extends Controller
     {
         $comments = $task->comments()->with('user')->latest()->get();
         return response()->json($comments);
+    }
+
+    public function exploreTasks(Request $request)
+    {
+        // scroll to fetch page without repeated
+        $tasks = Task::query()
+            ->withCount('sub_tasks')
+            ->paginate(10);
+
+        return response()->json($tasks);
     }
 }
