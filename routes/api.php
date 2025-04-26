@@ -40,4 +40,8 @@ Route::middleware('auth:sanctum')->group(function () {
         'update',
         'destroy',
     ]);
+
+    Route::get('projects_list', [ProjectController::class, 'getProjectsListWithPagination']);
+    Route::get('users_list', [UserController::class, 'getUsersList']);
+    Route::post('users/{user}/follow', [UserController::class, 'followUser']);
 });

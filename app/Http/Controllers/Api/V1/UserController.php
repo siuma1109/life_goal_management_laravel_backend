@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
@@ -80,5 +81,39 @@ class UserController extends Controller
         $user->delete();
 
         return response()->json(null, 204);
+    }
+
+    public function getUsersList(Request $request)
+    {
+        $users = User::query()
+            ->withCount([
+                'followers',
+                'following',
+                'followers as is_followed' => function ($query) use ($request) {
+                    $query->where('follower_id', $request->user()->id);
+                },
+            ])
+            ->when($request->has('search'), function ($query) use ($request) {
+                $query->where('name', 'like', '%' . $request->search . '%');
+            })
+            ->where('id', '!=', $request->user()->id)
+            ->paginate(10);
+
+        return response()->json($users);
+    }
+
+    public function followUser(Request $request, User $user)
+    {
+        $is_following = $request->user()->following()->where('user_id', $user->id)->exists();
+
+        if ($is_following) {
+            $request->user()->following()->detach($user);
+        } else {
+            $request->user()->following()->attach($user);
+        }
+
+        return response()->json([
+            'message' => $is_following ? 'User unfollowed successfully' : 'User followed successfully',
+        ]);
     }
 }

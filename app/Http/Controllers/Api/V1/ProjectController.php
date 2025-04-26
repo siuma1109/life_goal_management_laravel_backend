@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 
 class ProjectController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $projects = Project::query()
             ->withCount([
@@ -18,8 +18,28 @@ class ProjectController extends Controller
                     $query->where('parent_id', null);
                 }
             ])
+            ->when($request->has('search'), function ($query) use ($request) {
+                $query->where('name', 'like', '%' . $request->search . '%');
+            })
             ->where('user_id', Auth::id())
             ->get();
+
+        return response()->json($projects);
+    }
+
+    public function getProjectsListWithPagination(Request $request)
+    {
+        $projects = Project::query()
+            ->withCount([
+                'tasks' => function ($query) {
+                    $query->where('parent_id', null);
+                }
+            ])
+            ->when($request->has('search'), function ($query) use ($request) {
+                $query->where('name', 'like', '%' . $request->search . '%');
+            })
+            ->where('user_id', Auth::id())
+            ->paginate($request->per_page ?? 10);
 
         return response()->json($projects);
     }

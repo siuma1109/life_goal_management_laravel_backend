@@ -215,8 +215,12 @@ class TaskController extends Controller
     {
         // scroll to fetch page without repeated
         $tasks = Task::query()
+            ->when($request->has('search'), function ($query) use ($request) {
+                $query->where('title', 'like', '%' . $request->search . '%');
+            })
+            ->with('user')
             ->withCount('sub_tasks')
-            ->paginate(10);
+            ->paginate($request->per_page ?? 10);
 
         return response()->json($tasks);
     }
