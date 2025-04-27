@@ -7,7 +7,7 @@ use App\Models\Comment;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use Carbon\Carbon;
 class TaskController extends Controller
 {
     public function index(Request $request)
@@ -38,9 +38,32 @@ class TaskController extends Controller
                         });
                 });
             })
-            ->where('is_checked', false)
+            ->orderBy('is_checked', 'asc')
+            ->orderBy('priority', 'asc')
+            //->where('is_checked', false)
             ->get();
 
+        return response()->json($tasks);
+    }
+
+    public function getTasksListWithPagination(Request $request)
+    {
+        $tasks = Task::query()
+            ->with(['sub_tasks' => function ($query) {
+                $query->orderBy('priority', 'asc');
+            }])
+            ->when($request->has('search'), function ($query) use ($request) {
+                $query->where('title', 'like', '%' . $request->search . '%');
+            })
+            ->when($request->date, function ($query) use ($request) {
+                $query->where('start_date', '>=', Carbon::parse($request->date)->startOfDay()->toDateTimeString())
+                    ->where('end_date', '<=', Carbon::parse($request->date)->endOfDay()->toDateTimeString());
+            })
+            ->where('user_id', Auth::id())
+            ->where('parent_id', null)
+            ->orderBy('is_checked', 'asc')
+            ->orderBy('priority', 'asc')
+            ->paginate($request->per_page ?? 10);
         return response()->json($tasks);
     }
 
@@ -96,6 +119,11 @@ class TaskController extends Controller
             'is_checked' => $request->is_checked ?? false,
             'parent_id' => $request->parent_id,
             'project_id' => $request->project_id,
+            'user_id' => Auth::id(),
+        ]);
+
+        $task->feeds()->create([
+            'body' => 'Created a task',
             'user_id' => Auth::id(),
         ]);
 
@@ -155,6 +183,13 @@ class TaskController extends Controller
             ->fill($request->all())
             ->save();
 
+        if($request->is_checked) {
+            $task->feeds()->create([
+                'body' => 'Finished a task',
+                'user_id' => Auth::id(),
+            ]);
+        }
+
         $task->load('sub_tasks');
         return response()->json($task);
     }
@@ -164,7 +199,7 @@ class TaskController extends Controller
         if ($task->user_id !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-
+        $task->feeds()->delete();
         $task->delete();
         return response()->json(null, 204);
     }
@@ -177,6 +212,11 @@ class TaskController extends Controller
 
         $comment = $task->comments()->create([
             'body' => $request->body,
+            'user_id' => Auth::id(),
+        ]);
+
+        $task->feeds()->create([
+            'body' => 'Commented on a task',
             'user_id' => Auth::id(),
         ]);
 

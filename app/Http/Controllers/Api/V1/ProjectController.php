@@ -55,6 +55,11 @@ class ProjectController extends Controller
             'user_id' => Auth::id(),
         ]);
 
+        $project->feeds()->create([
+            'body' => 'Created a project',
+            'user_id' => Auth::id(),
+        ]);
+
         return response()->json($project);
     }
 
@@ -81,6 +86,7 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $project->feeds()->delete();
         $project->delete();
         return response()->json(null, 204);
     }

@@ -59,4 +59,9 @@ class Task extends Model
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
+
+    public function feeds()
+    {
+        return $this->morphMany(Feed::class, 'feedable');
+    }
 }

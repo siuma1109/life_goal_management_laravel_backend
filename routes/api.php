@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\FeedController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -43,5 +44,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('projects_list', [ProjectController::class, 'getProjectsListWithPagination']);
     Route::get('users_list', [UserController::class, 'getUsersList']);
+    Route::get('tasks_list', [TaskController::class, 'getTasksListWithPagination']);
     Route::post('users/{user}/follow', [UserController::class, 'followUser']);
+
+    /**
+     * Feeds
+     */
+    Route::resource('feeds', FeedController::class)->only([
+        'index',
+    ]);
 });
