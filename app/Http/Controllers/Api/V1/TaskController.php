@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
+use App\Models\Like;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,11 @@ class TaskController extends Controller
     {
         $tasks = Task::query()
             ->with('sub_tasks')
+            ->withCount([
+                'likes',
+                'comments',
+                'shares',
+            ])
             ->when($request->type == 'inbox', function ($query) use ($request) {
                 return $query->whereNull('project_id')
                     ->whereNull('parent_id');
@@ -52,6 +58,14 @@ class TaskController extends Controller
             ->with(['sub_tasks' => function ($query) {
                 $query->orderBy('priority', 'asc');
             }])
+            ->withCount([
+                'likes',
+                'comments',
+                'shares',
+                'likes as is_liked' => function ($query) {
+                    $query->where('user_id', Auth::id());
+                },
+            ])
             ->when($request->has('search'), function ($query) use ($request) {
                 $query->where('title', 'like', '%' . $request->search . '%');
             })
@@ -245,9 +259,11 @@ class TaskController extends Controller
         return response()->json($comment);
     }
 
-    public function getComments(Task $task)
+    public function getComments(Request $request, Task $task)
     {
-        $comments = $task->comments()->with('user')->latest()->get();
+        $comments = $task->comments()->with('user')->latest()->paginate(
+            $request->per_page ?? 10
+        );
         return response()->json($comments);
     }
 
@@ -263,5 +279,18 @@ class TaskController extends Controller
             ->paginate($request->per_page ?? 10);
 
         return response()->json($tasks);
+    }
+
+    public function like(Task $task)
+    {
+        $like = Like::where('likeable_id', $task->id)->where('user_id', Auth::id())->first();
+        if ($like) {
+            $like->delete();
+        } else {
+            $task->likes()->create([
+                'user_id' => Auth::id(),
+            ]);
+        }
+        return response()->json(null);
     }
 }

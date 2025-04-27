@@ -28,9 +28,9 @@ class Feed extends Model
         return $this->belongsTo(Project::class);
     }
 
-    public function comment()
+    public function comments()
     {
-        return $this->belongsTo(Comment::class);
+        return $this->morphMany(Comment::class, 'commentable');
     }
 
     public function likes()
@@ -41,5 +41,10 @@ class Feed extends Model
     public function shares()
     {
         return $this->morphMany(Share::class, 'shareable');
+    }
+
+    public function feeds()
+    {
+        return $this->morphMany(Feed::class, 'feedable');
     }
 }

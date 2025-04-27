@@ -64,4 +64,14 @@ class Task extends Model
     {
         return $this->morphMany(Feed::class, 'feedable');
     }
+
+    public function likes()
+    {
+        return $this->morphMany(Like::class, 'likeable');
+    }
+
+    public function shares()
+    {
+        return $this->morphMany(Share::class, 'shareable');
+    }
 }

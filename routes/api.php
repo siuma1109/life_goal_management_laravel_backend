@@ -33,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('tasks_count', [TaskController::class, 'tasks_count']);
 
     Route::get('explore/tasks', [TaskController::class, 'exploreTasks']);
+    Route::post('tasks/{task}/like', [TaskController::class, 'like']);
 
     /**
      * Users
@@ -53,4 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::resource('feeds', FeedController::class)->only([
         'index',
     ]);
+    Route::post('feeds/{feed}/comments', [FeedController::class, 'storeComment']);
+    Route::get('feeds/{feed}/comments', [FeedController::class, 'getComments']);
+    Route::post('feeds/{feed}/like', [FeedController::class, 'like']);
 });
