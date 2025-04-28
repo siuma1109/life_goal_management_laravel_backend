@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserFollow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -87,10 +88,15 @@ class UserController extends Controller
     {
         $users = User::query()
             ->withCount([
-                'followers',
-                'following',
+                'followers' => function ($query) {
+                    $query->where('deleted_at', null);
+                },
+                'following' => function ($query) {
+                    $query->where('deleted_at', null);
+                },
                 'followers as is_followed' => function ($query) use ($request) {
-                    $query->where('follower_id', $request->user()->id);
+                    $query->where('follower_id', $request->user()->id)
+                        ->where('deleted_at', null);
                 },
             ])
             ->when($request->has('search'), function ($query) use ($request) {
@@ -102,18 +108,90 @@ class UserController extends Controller
         return response()->json($users);
     }
 
+    public function getFollowers(Request $request, User $user)
+    {
+        $followers = $user->followers()
+            ->where('deleted_at', null)
+            //->where('id', '!=', $request->user()->id)
+            ->when($request->has('search'), function ($query) use ($request) {
+                $query->where('name', 'like', '%' . $request->search . '%');
+            })
+            ->paginate($request->per_page ?? 10);
+        $followers->loadCount([
+            'followers' => function ($query) use ($request) {
+                $query->where('deleted_at', null);
+            },
+            'following' => function ($query) use ($request) {
+                $query->where('deleted_at', null);
+            },
+            'followers as is_followed' => function ($query) use ($request) {
+                $query->where('follower_id', $request->user()->id)
+                    ->where('deleted_at', null);
+            },
+        ]);
+
+        return response()->json($followers);
+    }
+
+    public function getFollowing(Request $request, User $user)
+    {
+        $following = $user->following()
+            ->where('deleted_at', null)
+            //->where('id', '!=', $request->user()->id)
+            ->when($request->has('search'), function ($query) use ($request) {
+                $query->where('name', 'like', '%' . $request->search . '%');
+            })
+            ->paginate($request->per_page ?? 10);
+        $following->loadCount([
+            'followers' => function ($query) use ($request) {
+                $query->where('deleted_at', null);
+            },
+            'following' => function ($query) use ($request) {
+                $query->where('deleted_at', null);
+            },
+            'followers as is_followed' => function ($query) use ($request) {
+                $query->where('follower_id', $request->user()->id)
+                    ->where('deleted_at', null);
+            },
+        ]);
+
+        return response()->json($following);
+    }
+
     public function followUser(Request $request, User $user)
     {
-        $is_following = $request->user()->following()->where('user_id', $user->id)->exists();
-
-        if ($is_following) {
-            $request->user()->following()->detach($user);
-        } else {
-            $request->user()->following()->attach($user);
+        if ($user->id === $request->user()->id) {
+            return response()->json([
+                'message' => 'You cannot follow yourself',
+                'success' => false
+            ], 400);
         }
 
+        $isFollowing = UserFollow::isFollowing($user->id, $request->user()->id);
+        $status = 'unknown';
+
+        if ($isFollowing) {
+            UserFollow::unfollow($user->id, $request->user()->id);
+            $status = 'unfollowed';
+        } else {
+            UserFollow::follow($user->id, $request->user()->id);
+            $status = 'followed';
+        }
+
+        $followersCount = $user->followers()->count();
+        $followingCount = $user->following()->count();
+
         return response()->json([
-            'message' => $is_following ? 'User unfollowed successfully' : 'User followed successfully',
+            'message' => $status === 'followed' ? 'Followed successfully' : 'Unfollowed successfully',
+            'status' => $status,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'followers_count' => $followersCount,
+                'following_count' => $followingCount,
+                'is_followed' => $status === 'followed'
+            ],
+            'success' => true
         ]);
     }
 }

@@ -13,7 +13,16 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
 Route::get('/user', function (Request $request) {
-    return $request->user();
+    $user = $request->user();
+    $user->loadCount([
+        'followers' => function ($query) {
+            $query->where('deleted_at', null);
+        },
+        'following' => function ($query) {
+            $query->where('deleted_at', null);
+        },
+    ]);
+    return $user;
 })->middleware('auth:sanctum');
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -43,6 +52,9 @@ Route::middleware('auth:sanctum')->group(function () {
         'update',
         'destroy',
     ]);
+
+    Route::get('users/{user}/followers', [UserController::class, 'getFollowers']);
+    Route::get('users/{user}/following', [UserController::class, 'getFollowing']);
 
     Route::get('projects_list', [ProjectController::class, 'getProjectsListWithPagination']);
     Route::get('users_list', [UserController::class, 'getUsersList']);
