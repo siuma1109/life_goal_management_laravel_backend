@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\FeedController;
 use App\Http\Controllers\Api\V1\ProjectController;
@@ -22,6 +23,7 @@ Route::get('/user', function (Request $request) {
             $query->where('deleted_at', null);
         },
     ]);
+
     return $user;
 })->middleware('auth:sanctum');
 
@@ -55,6 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('users/{user}/followers', [UserController::class, 'getFollowers']);
     Route::get('users/{user}/following', [UserController::class, 'getFollowing']);
+    Route::get('notifications', [UserController::class, 'getNotifications']);
+    Route::post('notifications/read', [UserController::class, 'markAsRead']);
+    Route::get('notifications/unread_count', [UserController::class, 'getUnreadCount']);
 
     Route::get('projects_list', [ProjectController::class, 'getProjectsListWithPagination']);
     Route::get('users_list', [UserController::class, 'getUsersList']);

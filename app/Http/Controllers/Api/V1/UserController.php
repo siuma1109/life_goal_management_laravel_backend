@@ -158,6 +158,34 @@ class UserController extends Controller
         return response()->json($following);
     }
 
+    public function getNotifications(Request $request)
+    {
+        $notifications = $request->user()->notifications()
+            ->orderBy('created_at', 'desc')
+            ->when($request->has('type'), function ($query) use ($request) {
+                $query->where('type', $request->type);
+            })
+            ->paginate($request->per_page ?? 10);
+
+        return response()->json($notifications);
+    }
+
+    public function getUnreadCount(Request $request)
+    {
+        $unreadCount = $request->user()->unreadNotifications()->count();
+        return response()->json(['unread_count' => $unreadCount]);
+    }
+
+    public function markAsRead(Request $request)
+    {
+        $validated =$request->validate([
+            'notification_id' => 'required|exists:notifications,id,notifiable_id,' . $request->user()->id,
+        ]);
+
+        $request->user()->unreadNotifications()->where('id', $validated['notification_id'])->update(['read_at' => now()]);
+        return response()->json(null);
+    }
+
     public function followUser(Request $request, User $user)
     {
         if ($user->id === $request->user()->id) {

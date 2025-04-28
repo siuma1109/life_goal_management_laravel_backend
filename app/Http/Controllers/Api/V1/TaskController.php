@@ -9,14 +9,14 @@ use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use App\Notifications\UserCommentedATask;
 
 class TaskController extends Controller
 {
     public function index(Request $request)
     {
         $tasks = Task::query()
-            ->with('sub_tasks')
+            ->with(['sub_tasks', 'user'])
             ->withCount([
                 'likes',
                 'comments',
@@ -55,6 +55,9 @@ class TaskController extends Controller
                         $query->where('start_date', '<=', $endOfDay->toDateTimeString())
                             ->where('end_date', '>=', $startOfDay->toDateTimeString());
                     });
+            })
+            ->when($request->type == 'inbox', function ($query) use ($request) {
+                return $query->orderBy('created_at', 'desc');
             })
             ->orderBy('is_checked', 'asc')
             ->orderBy('priority', 'asc')
@@ -129,9 +132,12 @@ class TaskController extends Controller
     public function getTasksListWithPagination(Request $request)
     {
         $tasks = Task::query()
-            ->with(['sub_tasks' => function ($query) {
-                $query->orderBy('priority', 'asc');
-            }])
+            ->with([
+                'sub_tasks' => function ($query) {
+                    $query->orderBy('priority', 'asc');
+                },
+                'user'
+            ])
             ->withCount([
                 'likes',
                 'comments',
@@ -143,9 +149,15 @@ class TaskController extends Controller
             ->when($request->has('search'), function ($query) use ($request) {
                 $query->where('title', 'like', '%' . $request->search . '%');
             })
-            ->when($request->date, function ($query) use ($request) {
-                $query->where('start_date', '>=', Carbon::parse($request->date)->startOfDay()->toDateTimeString())
-                    ->where('end_date', '<=', Carbon::parse($request->date)->endOfDay()->toDateTimeString());
+            ->when($request->has('date') && $request->date, function ($query) use ($request) {
+                $startOfDay = Carbon::parse($request->date)->startOfDay();
+                $endOfDay = Carbon::parse($request->date)->endOfDay();
+
+                return $query->whereNull('parent_id')
+                    ->where(function ($query) use ($startOfDay, $endOfDay) {
+                        $query->where('start_date', '<=', $endOfDay->toDateTimeString())
+                            ->where('end_date', '>=', $startOfDay->toDateTimeString());
+                    });
             })
             ->where('user_id', Auth::id())
             ->where('parent_id', null)
@@ -244,7 +256,15 @@ class TaskController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $task->load('sub_tasks');
+        $task->load(['sub_tasks', 'user'])
+            ->loadCount([
+                'likes',
+                'comments',
+                'shares',
+                'likes as is_liked' => function ($query) {
+                    $query->where('user_id', Auth::id());
+                },
+            ]);
 
         return response()->json($task);
     }
@@ -294,19 +314,24 @@ class TaskController extends Controller
 
     public function storeComment(Request $request, Task $task)
     {
+        $user = $request->user();
         $request->validate([
             'body' => 'required|string',
         ]);
 
         $comment = $task->comments()->create([
             'body' => $request->body,
-            'user_id' => Auth::id(),
+            'user_id' => $user->id,
         ]);
 
         $task->feeds()->create([
             'body' => 'Commented on a task',
-            'user_id' => Auth::id(),
+            'user_id' => $user->id,
         ]);
+
+        if ($task->user_id !== $user->id) {
+            $task->user->notify(new UserCommentedATask($user, $task, $comment));
+        }
 
         $comment->load('user');
 
@@ -349,7 +374,14 @@ class TaskController extends Controller
                 $query->where('title', 'like', '%' . $request->search . '%');
             })
             ->with('user')
-            ->withCount('sub_tasks')
+            ->withCount([
+                'sub_tasks',
+                'comments',
+                'likes',
+                'likes as is_liked' => function ($query) {
+                    $query->where('user_id', Auth::id());
+                },
+            ])
             ->paginate($request->per_page ?? 10);
 
         return response()->json($tasks);
