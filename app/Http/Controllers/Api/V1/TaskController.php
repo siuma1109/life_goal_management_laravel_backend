@@ -9,6 +9,8 @@ use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+
 class TaskController extends Controller
 {
     public function index(Request $request)
@@ -44,12 +46,84 @@ class TaskController extends Controller
                         });
                 });
             })
+            ->when($request->has('date') && $request->date, function ($query) use ($request) {
+                $startOfDay = Carbon::parse($request->date)->startOfDay();
+                $endOfDay = Carbon::parse($request->date)->endOfDay();
+
+                return $query->whereNull('parent_id')
+                    ->where(function ($query) use ($startOfDay, $endOfDay) {
+                        $query->where('start_date', '<=', $endOfDay->toDateTimeString())
+                            ->where('end_date', '>=', $startOfDay->toDateTimeString());
+                    });
+            })
             ->orderBy('is_checked', 'asc')
             ->orderBy('priority', 'asc')
             //->where('is_checked', false)
-            ->get();
+            ->paginate($request->per_page ?? 10);
 
         return response()->json($tasks);
+    }
+
+    public function tasks_count_by_date(Request $request)
+    {
+        $request->validate([
+            'year' => 'required|integer',
+            'month' => 'required|integer',
+        ]);
+
+        $startOfMonth = Carbon::createFromDate($request->year, $request->month, 1)->startOfDay();
+        $endOfMonth = Carbon::createFromDate($request->year, $request->month, 1)->endOfMonth()->endOfDay();
+
+        $result = [];
+        $currentDate = clone $startOfMonth;
+        while ($currentDate <= $endOfMonth) {
+            $dateString = $currentDate->format('Y-m-d');
+            $result[$dateString] = 0;
+            $currentDate->addDay();
+        }
+
+        $tasks = Task::query()
+            ->where('user_id', Auth::id())
+            ->where('parent_id', null)
+            ->where(function ($query) use ($startOfMonth, $endOfMonth) {
+                $query->where(function ($q) use ($startOfMonth, $endOfMonth) {
+                    $q->where('start_date', '<=', $endOfMonth)
+                        ->where('end_date', '>=', $startOfMonth);
+                });
+            })
+            ->get();
+
+        foreach ($tasks as $task) {
+            if (!$task->start_date || !$task->end_date) {
+                continue;
+            }
+
+            $taskStart = Carbon::parse($task->start_date)->startOfDay();
+            $taskEnd = Carbon::parse($task->end_date)->endOfDay();
+
+            $periodStart = max($taskStart, $startOfMonth);
+            $periodEnd = min($taskEnd, $endOfMonth);
+
+            $current = clone $periodStart;
+
+            while ($current <= $periodEnd) {
+                $dateKey = $current->format('Y-m-d');
+                if (isset($result[$dateKey])) {
+                    $result[$dateKey]++;
+                }
+                $current->addDay();
+            }
+        }
+
+        $formattedResult = [];
+        foreach ($result as $date => $count) {
+            $formattedResult[] = [
+                'date' => $date,
+                'count' => $count
+            ];
+        }
+
+        return response()->json($formattedResult);
     }
 
     public function getTasksListWithPagination(Request $request)
@@ -197,7 +271,7 @@ class TaskController extends Controller
             ->fill($request->all())
             ->save();
 
-        if($request->is_checked) {
+        if ($request->is_checked) {
             $task->feeds()->create([
                 'body' => 'Finished a task',
                 'user_id' => Auth::id(),
