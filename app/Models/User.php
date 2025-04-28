@@ -64,4 +64,30 @@ class User extends Authenticatable
         return $this->belongsToMany(User::class, 'users_followers', 'follower_id', 'user_id');
     }
 
+    public function chat_rooms()
+    {
+        return $this->belongsToMany(Chatroom::class, 'chatroom_users')
+            ->withPivot('last_read_at')
+            ->withTimestamps();
+    }
+
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    public function getMutualFollowersIds()
+    {
+        $followingIds = $this->following()->pluck('users.id')->toArray();
+        $followerIds = $this->followers()->pluck('users.id')->toArray();
+
+        return array_intersect($followingIds, $followerIds);
+    }
+
+    public function canChatWith(User $user)
+    {
+        return $this->following()->where('users.id', $user->id)->exists() &&
+               $user->following()->where('users.id', $this->id)->exists();
+    }
+
 }

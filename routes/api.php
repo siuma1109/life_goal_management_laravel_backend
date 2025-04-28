@@ -75,4 +75,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('feeds/{feed}/comments', [FeedController::class, 'storeComment']);
     Route::get('feeds/{feed}/comments', [FeedController::class, 'getComments']);
     Route::post('feeds/{feed}/like', [FeedController::class, 'like']);
+
+    /**
+     * ChatRooms
+     */
+    Route::get('chat_rooms', [App\Http\Controllers\Api\V1\ChatController::class, 'getChatRooms']);
+    Route::post('chat_rooms', [App\Http\Controllers\Api\V1\ChatController::class, 'createChatroom']);
+    Route::get('chat_rooms/{chatroom}/messages', [App\Http\Controllers\Api\V1\ChatController::class, 'getMessages']);
+    Route::post('chat_rooms/{chatroom}/messages', [App\Http\Controllers\Api\V1\ChatController::class, 'sendMessage']);
+    Route::delete('messages/{message}', [App\Http\Controllers\Api\V1\ChatController::class, 'deleteMessage']);
 });
