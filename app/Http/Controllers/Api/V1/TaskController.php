@@ -21,10 +21,16 @@ class TaskController extends Controller
                 'likes',
                 'comments',
                 'shares',
+                'likes as is_liked' => function ($query) {
+                    $query->where('user_id', Auth::id());
+                },
             ])
             ->when($request->type == 'inbox', function ($query) use ($request) {
                 return $query->whereNull('project_id')
                     ->whereNull('parent_id');
+            })
+            ->when($request->type == 'completed', function ($query) use ($request) {
+                return $query->where('is_checked', true);
             })
             ->when($request->has('project_id'), function ($query) use ($request) {
                 return $query->where('project_id', $request->project_id)
@@ -33,7 +39,7 @@ class TaskController extends Controller
             ->when($request->has('parent_id'), function ($query) use ($request) {
                 return $query->where('parent_id', $request->parent_id);
             })
-            ->where('user_id', Auth::id())
+            ->where('user_id', $request->user_id ?: Auth::id())
             ->when($request->year && $request->month, function ($query) use ($request) {
                 return $query->where(function ($query) use ($request) {
                     $query->where(function ($query) use ($request) {
@@ -56,11 +62,9 @@ class TaskController extends Controller
                             ->where('end_date', '>=', $startOfDay->toDateTimeString());
                     });
             })
-            ->when($request->type == 'inbox', function ($query) use ($request) {
-                return $query->orderBy('created_at', 'desc');
-            })
             ->orderBy('is_checked', 'asc')
             ->orderBy('priority', 'asc')
+            ->orderBy('created_at', 'desc')
             //->where('is_checked', false)
             ->paginate($request->per_page ?? 10);
 
@@ -184,7 +188,7 @@ class TaskController extends Controller
             ->when($request->has('parent_id'), function ($query) use ($request) {
                 return $query->where('parent_id', $request->parent_id);
             })
-            ->where('user_id', Auth::id());
+            ->where('user_id', $request->user_id ?: Auth::id());
 
         $tasks_count = $query->count();
 

@@ -38,7 +38,7 @@ class ProjectController extends Controller
             ->when($request->has('search'), function ($query) use ($request) {
                 $query->where('name', 'like', '%' . $request->search . '%');
             })
-            ->where('user_id', Auth::id())
+            ->where('user_id', $request->user_id ?: Auth::id())
             ->paginate($request->per_page ?? 10);
 
         return response()->json($projects);
