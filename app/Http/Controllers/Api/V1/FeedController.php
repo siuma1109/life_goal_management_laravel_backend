@@ -50,11 +50,6 @@ class FeedController extends Controller
             'user_id' => $request->user()->id,
         ]);
 
-        $feed->feeds()->create([
-            'body' => 'Commented on a feed',
-            'user_id' => $request->user()->id,
-        ]);
-
         $comment->load('user');
 
         return response()->json($comment);

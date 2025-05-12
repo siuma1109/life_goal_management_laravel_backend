@@ -19,4 +19,9 @@ class Project extends Model
     {
         return $this->hasMany(Task::class);
     }
+
+    public function feeds()
+    {
+        return $this->morphMany(Feed::class, 'feedable');
+    }
 }
