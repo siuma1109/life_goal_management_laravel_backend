@@ -2,12 +2,16 @@
 
 namespace App\Services;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 
 class AiService
 {
     public function fetchAIDetails(string $prompt)
     {
+        $today = Carbon::now()->format('Y-m-d');
+        $prompt = "Today is {$today}. Please generate task suggestions based on the following prompt: {$prompt}";
+
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
             'Authorization' => 'Bearer ' . env('DIFY_API_KEY'),
