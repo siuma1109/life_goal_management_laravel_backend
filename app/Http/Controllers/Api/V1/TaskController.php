@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use App\Notifications\UserCommentedATask;
+use App\Services\AiService;
 
 class TaskController extends Controller
 {
@@ -402,5 +403,16 @@ class TaskController extends Controller
             ]);
         }
         return response()->json(null);
+    }
+
+    public function taskSuggestions(Request $request)
+    {
+        $request->validate([
+            'prompt' => 'required|string',
+        ]);
+
+        $aiService = new AiService();
+        $task_suggestions = $aiService->fetchAIDetails($request->prompt);
+        return response()->json($task_suggestions);
     }
 }
