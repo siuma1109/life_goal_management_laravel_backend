@@ -392,16 +392,26 @@ class TaskController extends Controller
         return response()->json($tasks);
     }
 
-    public function like(Task $task)
+    public function like(Request $request, Task $task)
     {
+        $request->validate([
+            'isLiked' => 'required|boolean',
+        ]);
+
         $like = Like::where('likeable_id', $task->id)->where('user_id', Auth::id())->first();
-        if ($like) {
-            $like->delete();
+
+        if (!$request->isLiked) {
+            if ($like) {
+                $like->delete();
+            }
         } else {
-            $task->likes()->create([
-                'user_id' => Auth::id(),
-            ]);
+            if (!$like) {
+                $task->likes()->create([
+                    'user_id' => Auth::id(),
+                ]);
+            }
         }
+
         return response()->json(null);
     }
 

@@ -27,15 +27,24 @@ class FeedController extends Controller
 
     public function like(Request $request, Feed $feed)
     {
+        $request->validate([
+            'isLiked' => 'required|boolean',
+        ]);
+
         $like = Like::where('likeable_id', $feed->id)
             ->where('user_id', $request->user()->id)
             ->first();
-        if ($like) {
-            $like->delete();
+
+        if (!$request->isLiked) {
+            if ($like) {
+                $like->delete();
+            }
         } else {
-            $feed->likes()->create([
-                'user_id' => $request->user()->id,
-            ]);
+            if (!$like) {
+                $feed->likes()->create([
+                    'user_id' => $request->user()->id,
+                ]);
+            }
         }
         return response()->json(null);
     }
