@@ -86,7 +86,11 @@ class TaskController extends Controller
         $currentDate = clone $startOfMonth;
         while ($currentDate <= $endOfMonth) {
             $dateString = $currentDate->format('Y-m-d');
-            $result[$dateString] = 0;
+            $result[$dateString] = [
+                'date' => $dateString,
+                'count' => 0,
+                'ids' => [],
+            ];
             $currentDate->addDay();
         }
 
@@ -117,17 +121,19 @@ class TaskController extends Controller
             while ($current <= $periodEnd) {
                 $dateKey = $current->format('Y-m-d');
                 if (isset($result[$dateKey])) {
-                    $result[$dateKey]++;
+                    $result[$dateKey]['count']++;
+                    $result[$dateKey]['ids'][] = $task->id;
                 }
                 $current->addDay();
             }
         }
 
         $formattedResult = [];
-        foreach ($result as $date => $count) {
+        foreach ($result as $date => $row) {
             $formattedResult[] = [
                 'date' => $date,
-                'count' => $count
+                'count' => $row['count'],
+                'ids' => $row['ids'],
             ];
         }
 
